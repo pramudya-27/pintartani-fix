@@ -1,0 +1,5 @@
+scraping/database.json
+.env
+__pycache__
+logs
+frontend
