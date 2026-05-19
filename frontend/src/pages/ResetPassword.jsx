@@ -1,9 +1,10 @@
 import { useState } from "react";
 import axios from "axios";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 
 function ResetPassword({ token, setPage }) {
   const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -18,7 +19,7 @@ function ResetPassword({ token, setPage }) {
     setMessage("⏳ Memproses...");
 
     try {
-      const res = await axios.post("/api/auth/reset-password", {
+      await axios.post("/api/auth/reset-password", {
         token: token,
         new_password: newPassword,
       });
@@ -60,13 +61,21 @@ function ResetPassword({ token, setPage }) {
           </div>
         ) : (
           <form onSubmit={handleReset} className="flex flex-col gap-3">
-            <input
-              type="password"
-              className="form-input"
-              placeholder="Password Baru (min. 6 karakter)"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="form-input w-full pr-10"
+                placeholder="Password Baru (min. 6 karakter)"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
+              <span
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-light/50 hover:text-brand-accent transition-colors flex items-center justify-center cursor-pointer select-none"
+              >
+                {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+              </span>
+            </div>
             <button
               type="submit"
               disabled={loading}
