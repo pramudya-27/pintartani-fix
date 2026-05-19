@@ -1,6 +1,6 @@
 import {useState} from "react";
 import axios from "axios";
-import {UserCircle, ArrowLeft} from "lucide-react";
+import {UserCircle, ArrowLeft, Eye, EyeOff} from "lucide-react";
 
 function Akun({ quota, setQuota, loggedInUser, setLoggedInUser }) {
   // 'login', 'register', 'forgot'
@@ -8,6 +8,7 @@ function Akun({ quota, setQuota, loggedInUser, setLoggedInUser }) {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -125,7 +126,7 @@ function Akun({ quota, setQuota, loggedInUser, setLoggedInUser }) {
           {activeTab === "forgot" ? (
              <div className="mb-4 flex items-center justify-between">
                <button 
-                  onClick={() => { setActiveTab("login"); setMessage(""); }}
+                  onClick={() => { setActiveTab("login"); setMessage(""); setShowPassword(false); }}
                   className="text-xs text-brand-light/50 hover:text-brand-accent flex items-center gap-1 transition-colors"
                >
                  <ArrowLeft size={14} /> Kembali
@@ -139,6 +140,7 @@ function Akun({ quota, setQuota, loggedInUser, setLoggedInUser }) {
                 onClick={() => {
                   setActiveTab("login");
                   setMessage("");
+                  setShowPassword(false);
                 }}
               >
                 Login
@@ -148,6 +150,7 @@ function Akun({ quota, setQuota, loggedInUser, setLoggedInUser }) {
                 onClick={() => {
                   setActiveTab("register");
                   setMessage("");
+                  setShowPassword(false);
                 }}
               >
                 Daftar
@@ -181,18 +184,26 @@ function Akun({ quota, setQuota, loggedInUser, setLoggedInUser }) {
             
             {activeTab !== "forgot" && (
               <div>
-                <input
-                  type="password"
-                  className="form-input w-full"
-                  placeholder="Password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    className="form-input w-full pr-10"
+                    placeholder="Password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <span
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-light/50 hover:text-brand-accent transition-colors flex items-center justify-center cursor-pointer select-none"
+                  >
+                    {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                  </span>
+                </div>
                 {activeTab === "login" && (
                   <div className="mt-2 text-right">
                     <button 
                       type="button"
-                      onClick={() => { setActiveTab("forgot"); setMessage(""); }}
+                      onClick={() => { setActiveTab("forgot"); setMessage(""); setShowPassword(false); }}
                       className="text-[10px] text-brand-light/50 hover:text-brand-accent transition-colors"
                     >
                       Lupa Password?
