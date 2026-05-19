@@ -298,25 +298,26 @@ def login(user_data: UserLogin, db: Session = Depends(get_db)):
 def forgot_password(req: ForgotPasswordRequest, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == req.email).first()
     
-    # Selalu return 200 untuk mencegah user enumeration
-    if user:
-        reset_token = str(uuid.uuid4())
-        # Token berlaku 15 menit
-        expires = datetime.utcnow() + timedelta(minutes=15)
-        
-        db_token = PasswordResetToken(
-            user_id=user.id,
-            token=reset_token,
-            expires_at=expires,
-            is_used=False
-        )
-        db.add(db_token)
-        db.commit()
-        
-        # Kirim email asli menggunakan SMTP
-        send_reset_email(user.email, reset_token)
+    if not user:
+        raise HTTPException(status_code=400, detail="maaf email tidak terdaftar")
 
-    return {"message": "Jika email terdaftar, link reset password akan dikirim ke email tersebut."}
+    reset_token = str(uuid.uuid4())
+    # Token berlaku 15 menit
+    expires = datetime.utcnow() + timedelta(minutes=15)
+    
+    db_token = PasswordResetToken(
+        user_id=user.id,
+        token=reset_token,
+        expires_at=expires,
+        is_used=False
+    )
+    db.add(db_token)
+    db.commit()
+    
+    # Kirim email asli menggunakan SMTP
+    send_reset_email(user.email, reset_token)
+
+    return {"message": "Link reset password berhasil dikirim ke email Anda."}
 
 @router.post("/api/auth/reset-password")
 def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db)):
