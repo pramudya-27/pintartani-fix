@@ -1,7 +1,12 @@
 import {useEffect, useRef} from "react";
 
-function PalmBackground() {
+function PalmBackground({ showLeaves = true }) {
   const canvasRef = useRef(null);
+  const showLeavesRef = useRef(showLeaves);
+
+  useEffect(() => {
+    showLeavesRef.current = showLeaves;
+  }, [showLeaves]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -186,168 +191,282 @@ function PalmBackground() {
         mouse.y = null;
       }
 
-      // Generate Palm Tree Coordinates dynamically
-      // We place the tree on the right side of the screen on desktop, or center it on mobile
-      const isMobile = canvas.width < 768;
-      const treeBaseX = isMobile ? canvas.width * 0.5 : canvas.width * 0.8;
-      const treeBaseY = canvas.height * 0.95;
-      const treeHeight = isMobile ? canvas.height * 0.5 : canvas.height * 0.65;
-      const trunkTopY = treeBaseY - treeHeight;
+      if (showLeavesRef.current) {
+        // Generate Two Joined Leaves Coordinates dynamically
+        const isMobile = canvas.width < 768;
+        const baseX = isMobile ? canvas.width * 0.5 : canvas.width * 0.82;
+        const baseY = canvas.height * 0.95;
+        const stemHeight = isMobile ? canvas.height * 0.35 : canvas.height * 0.45;
 
-      // Gentle swaying effect
-      const sway = Math.sin(time) * 15;
-      const trunkTopX = treeBaseX + sway;
+        // Gentle swaying effect
+        const sway = Math.sin(time * 0.8) * 10;
+        const stemTopX = baseX + sway;
+        const stemTopY = baseY - stemHeight;
 
-      // Calculate trunk coordinates
-      const trunkPoints = [];
-      const trunkSegments = 15;
-      for (let i = 0; i <= trunkSegments; i++) {
-        const t = i / trunkSegments;
-        // quadratic bezier for slight organic bend
-        const cx = treeBaseX * (1 - t) * (1 - t) + (treeBaseX + sway * 0.2) * 2 * t * (1 - t) + trunkTopX * t * t;
-        const cy = treeBaseY * (1 - t) + trunkTopY * t;
+        // Calculate stem (trunk) coordinates
+        const stemPoints = [];
+        const stemSegments = 10;
+        for (let i = 0; i <= stemSegments; i++) {
+          const t = i / stemSegments;
+          const cx = baseX * (1 - t) + stemTopX * t;
+          const cy = baseY * (1 - t) + stemTopY * t;
 
-        // Apply slight mouse repulsion to trunk nodes
-        let finalX = cx;
-        let finalY = cy;
-        if (mouse.x !== null && mouse.y !== null) {
-          const dx = cx - mouse.x;
-          const dy = cy - mouse.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < mouse.radius * 1.5) {
-            const force = (mouse.radius * 1.5 - dist) / (mouse.radius * 1.5);
-            finalX += (dx / dist) * force * 15;
-            finalY += (dy / dist) * force * 5;
-          }
-        }
-
-        trunkPoints.push({x: finalX, y: finalY});
-      }
-
-      // Generate Leaves (Fronds)
-      const leafCount = 8;
-      const allLeafPaths = [];
-
-      for (let l = 0; l < leafCount; l++) {
-        // angle radiating outward
-        const angleBase = (l / leafCount) * Math.PI * 2 + time * 0.05;
-        const leafPoints = [];
-        const leafSegments = 12;
-        const leafLength = isMobile ? 80 + Math.sin(time + l) * 5 : 160 + Math.sin(time + l) * 10;
-
-        for (let i = 0; i <= leafSegments; i++) {
-          const t = i / leafSegments;
-          // Leaf curves outward and then arches downwards
-          const angle = angleBase + Math.sin(time * 0.5 + l) * 0.05;
-          const dist = t * leafLength;
-          // Add arch (droop)
-          const arch = Math.pow(t, 2) * (isMobile ? 35 : 70);
-          
-          let lx = trunkTopX + Math.cos(angle) * dist;
-          let ly = trunkTopY + Math.sin(angle) * dist + arch;
-
-          // Mouse interaction on leaves
+          // Apply mouse repulsion to stem nodes
+          let finalX = cx;
+          let finalY = cy;
           if (mouse.x !== null && mouse.y !== null) {
-            const dx = lx - mouse.x;
-            const dy = ly - mouse.y;
-            const distMouse = Math.sqrt(dx * dx + dy * dy);
-            if (distMouse < mouse.radius) {
-              const force = (mouse.radius - distMouse) / mouse.radius;
-              lx += (dx / distMouse) * force * 20;
-              ly += (dy / distMouse) * force * 20;
+            const dx = cx - mouse.x;
+            const dy = cy - mouse.y;
+            const dist = Math.sqrt(dx * dx + dy * dy);
+            if (dist < mouse.radius * 1.5) {
+              const force = (mouse.radius * 1.5 - dist) / (mouse.radius * 1.5);
+              finalX += (dx / dist) * force * 15;
+              finalY += (dy / dist) * force * 5;
             }
           }
-
-          leafPoints.push({x: lx, y: ly});
+          stemPoints.push({ x: finalX, y: finalY });
         }
-        allLeafPaths.push(leafPoints);
-      }
 
-      // Occasional new data pulse traveling from root to leaves
-      if (Math.random() < 0.015 && trunkPoints.length > 0) {
-        // Select random leaf to travel to
-        const randomLeafIndex = Math.floor(Math.random() * allLeafPaths.length);
-        const leafPath = allLeafPaths[randomLeafIndex];
+        // Generate 2 Leaves joined at the stem top
+        const leafConfigs = [
+          {
+            // Left leaf: curves up and left
+            angle: -Math.PI * 0.65,
+            curve: -0.25,
+            leafLength: isMobile ? 130 : 220,
+            maxWidth: isMobile ? 32 : 55,
+          },
+          {
+            // Right leaf: curves up and right
+            angle: -Math.PI * 0.35,
+            curve: 0.25,
+            leafLength: isMobile ? 130 : 220,
+            maxWidth: isMobile ? 32 : 55,
+          }
+        ];
+
+        const leafSway = Math.sin(time * 0.5) * 0.05;
+        const allLeafPaths = []; // stores midrib paths
+        const allLeafLeftMargins = [];
+        const allLeafRightMargins = [];
+
+        leafConfigs.forEach((config) => {
+          const midribPoints = [];
+          const leftMarginPoints = [];
+          const rightMarginPoints = [];
+          
+          const baseAngle = config.angle + leafSway;
+          const leafSegments = 12;
+
+          for (let i = 0; i <= leafSegments; i++) {
+            const t = i / leafSegments;
+            
+            // Leaf curves along its length
+            const currentAngle = baseAngle + config.curve * t;
+            const dist = t * config.leafLength;
+            
+            let mx = stemTopX + Math.cos(currentAngle) * dist;
+            let my = stemTopY + Math.sin(currentAngle) * dist;
+
+            // Droop curve
+            const arch = Math.pow(t, 2) * (isMobile ? 15 : 30);
+            my += arch;
+
+            // Mouse repulsion on midrib
+            if (mouse.x !== null && mouse.y !== null) {
+              const dx = mx - mouse.x;
+              const dy = my - mouse.y;
+              const distMouse = Math.sqrt(dx * dx + dy * dy);
+              if (distMouse < mouse.radius) {
+                const force = (mouse.radius - distMouse) / mouse.radius;
+                mx += (dx / distMouse) * force * 15;
+                my += (dy / distMouse) * force * 15;
+              }
+            }
+
+            // Perpendicular angle for width
+            const perpAngle = currentAngle + Math.PI / 2;
+            
+            // Leaf width: starts at 0, peaks in the middle, tapers at the tip
+            const widthFactor = Math.sin(Math.pow(t, 0.8) * Math.PI);
+            const halfWidth = config.maxWidth * widthFactor;
+
+            // Margins
+            let lx = mx + Math.cos(perpAngle) * halfWidth;
+            let ly = my + Math.sin(perpAngle) * halfWidth;
+
+            let rx = mx - Math.cos(perpAngle) * halfWidth;
+            let ry = my - Math.sin(perpAngle) * halfWidth;
+
+            // Mouse repulsion on margins
+            if (mouse.x !== null && mouse.y !== null) {
+              const dxL = lx - mouse.x;
+              const dyL = ly - mouse.y;
+              const distL = Math.sqrt(dxL * dxL + dyL * dyL);
+              if (distL < mouse.radius) {
+                const force = (mouse.radius - distL) / mouse.radius;
+                lx += (dxL / distL) * force * 15;
+                ly += (dyL / distL) * force * 15;
+              }
+
+              const dxR = rx - mouse.x;
+              const dyR = ry - mouse.y;
+              const distR = Math.sqrt(dxR * dxR + dyR * dyR);
+              if (distR < mouse.radius) {
+                const force = (mouse.radius - distR) / mouse.radius;
+                rx += (dxR / distR) * force * 15;
+                ry += (dyR / distR) * force * 15;
+              }
+            }
+
+            midribPoints.push({ x: mx, y: my });
+            leftMarginPoints.push({ x: lx, y: ly });
+            rightMarginPoints.push({ x: rx, y: ry });
+          }
+
+          allLeafPaths.push(midribPoints);
+          allLeafLeftMargins.push(leftMarginPoints);
+          allLeafRightMargins.push(rightMarginPoints);
+        });
+
+        // Occasional new data pulse traveling from root to leaf tips
+        if (Math.random() < 0.015 && stemPoints.length > 0) {
+          // Select random leaf midrib to travel to
+          const randomLeafIndex = Math.floor(Math.random() * allLeafPaths.length);
+          const leafPath = allLeafPaths[randomLeafIndex];
+          
+          // Full path = stem + leaf midrib
+          const fullPath = [...stemPoints, ...leafPath];
+          pulses.push(new DataPulse(fullPath, Math.random() * 0.8 + 0.8));
+        }
+
+        // Draw 2-Leaf Constellation (Web3 Grid style)
+        ctx.save();
         
-        // Full path = trunk + leaf
-        const fullPath = [...trunkPoints, ...leafPath];
-        pulses.push(new DataPulse(fullPath, Math.random() * 0.8 + 0.8));
-      }
-
-      // Draw Palm Tree Constellation (Web3 Grid style)
-      ctx.save();
-      
-      // Draw trunk lines
-      ctx.strokeStyle = "rgba(74, 140, 50, 0.2)";
-      ctx.lineWidth = 2;
-      ctx.shadowBlur = 10;
-      ctx.shadowColor = "rgba(74, 140, 50, 0.4)";
-      ctx.beginPath();
-      ctx.moveTo(trunkPoints[0].x, trunkPoints[0].y);
-      for (let i = 1; i < trunkPoints.length; i++) {
-        ctx.lineTo(trunkPoints[i].x, trunkPoints[i].y);
-      }
-      ctx.stroke();
-
-      // Draw leaf fronds lines
-      ctx.strokeStyle = "rgba(181, 204, 106, 0.2)";
-      ctx.lineWidth = 1.5;
-      allLeafPaths.forEach((leaf) => {
+        // 1. Draw stem (trunk) lines
+        ctx.strokeStyle = "rgba(74, 140, 50, 0.25)";
+        ctx.lineWidth = 2.5;
+        ctx.shadowBlur = 10;
+        ctx.shadowColor = "rgba(74, 140, 50, 0.4)";
         ctx.beginPath();
-        ctx.moveTo(leaf[0].x, leaf[0].y);
-        for (let i = 1; i < leaf.length; i++) {
-          ctx.lineTo(leaf[i].x, leaf[i].y);
+        ctx.moveTo(stemPoints[0].x, stemPoints[0].y);
+        for (let i = 1; i < stemPoints.length; i++) {
+          ctx.lineTo(stemPoints[i].x, stemPoints[i].y);
         }
         ctx.stroke();
 
-        // Draw leaf leaflets (pins radiating out from the main frond axis)
-        ctx.strokeStyle = "rgba(181, 204, 106, 0.08)";
-        ctx.lineWidth = 1;
-        for (let i = 2; i < leaf.length; i += 2) {
-          const pt = leaf[i];
-          // Draw a small side needle
+        // 2. Draw leaf structures
+        allLeafPaths.forEach((midrib, leafIdx) => {
+          const leftMargin = allLeafLeftMargins[leafIdx];
+          const rightMargin = allLeafRightMargins[leafIdx];
+
+          // Draw midrib (tulang daun)
+          ctx.strokeStyle = "rgba(74, 140, 50, 0.35)";
+          ctx.lineWidth = 2;
+          ctx.shadowColor = "rgba(74, 140, 50, 0.4)";
           ctx.beginPath();
-          ctx.moveTo(pt.x, pt.y);
-          ctx.lineTo(pt.x + Math.sin(i + time) * 12, pt.y + 10);
+          ctx.moveTo(midrib[0].x, midrib[0].y);
+          for (let i = 1; i < midrib.length; i++) {
+            ctx.lineTo(midrib[i].x, midrib[i].y);
+          }
           ctx.stroke();
-        }
-      });
 
-      // Draw joints (dots/vertices)
-      ctx.fillStyle = "#8dc868";
-      ctx.shadowBlur = 12;
-      ctx.shadowColor = "#8dc868";
-
-      // Trunk nodes
-      trunkPoints.forEach((pt, idx) => {
-        if (idx % 2 === 0) {
+          // Draw left margin outline
+          ctx.strokeStyle = "rgba(181, 204, 106, 0.25)";
+          ctx.lineWidth = 1.5;
+          ctx.shadowColor = "rgba(181, 204, 106, 0.3)";
           ctx.beginPath();
-          ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
-          ctx.fill();
-        }
-      });
+          ctx.moveTo(leftMargin[0].x, leftMargin[0].y);
+          for (let i = 1; i < leftMargin.length; i++) {
+            ctx.lineTo(leftMargin[i].x, leftMargin[i].y);
+          }
+          ctx.stroke();
 
-      // Leaf nodes
-      allLeafPaths.forEach((leaf) => {
-        leaf.forEach((pt, idx) => {
-          if (idx % 3 === 0) {
-            ctx.fillStyle = "#b5cc6a";
-            ctx.shadowColor = "#b5cc6a";
+          // Draw right margin outline
+          ctx.beginPath();
+          ctx.moveTo(rightMargin[0].x, rightMargin[0].y);
+          for (let i = 1; i < rightMargin.length; i++) {
+            ctx.lineTo(rightMargin[i].x, rightMargin[i].y);
+          }
+          ctx.stroke();
+
+          // Draw leaf veins (urat daun) connecting midrib to margins
+          ctx.strokeStyle = "rgba(181, 204, 106, 0.09)";
+          ctx.lineWidth = 1;
+          for (let i = 1; i < midrib.length; i++) {
             ctx.beginPath();
-            ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+            ctx.moveTo(midrib[i].x, midrib[i].y);
+            ctx.lineTo(leftMargin[i].x, leftMargin[i].y);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.moveTo(midrib[i].x, midrib[i].y);
+            ctx.lineTo(rightMargin[i].x, rightMargin[i].y);
+            ctx.stroke();
+          }
+        });
+
+        // 3. Draw joints (dots/vertices)
+        ctx.fillStyle = "#8dc868";
+        ctx.shadowBlur = 12;
+        ctx.shadowColor = "#8dc868";
+
+        // Stem nodes
+        stemPoints.forEach((pt, idx) => {
+          if (idx % 2 === 0) {
+            ctx.beginPath();
+            ctx.arc(pt.x, pt.y, 2.5, 0, Math.PI * 2);
             ctx.fill();
           }
         });
-      });
 
-      ctx.restore();
+        // Leaf nodes (Midrib and margins)
+        allLeafPaths.forEach((midrib, leafIdx) => {
+          const leftMargin = allLeafLeftMargins[leafIdx];
+          const rightMargin = allLeafRightMargins[leafIdx];
 
-      // Update and draw data pulses
-      pulses = pulses.filter((pulse) => {
-        const active = pulse.update();
-        if (active) pulse.draw();
-        return active;
-      });
+          midrib.forEach((pt, idx) => {
+            if (idx > 0 && idx % 3 === 0) {
+              ctx.fillStyle = "#8dc868";
+              ctx.shadowColor = "#8dc868";
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 2, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+
+          leftMargin.forEach((pt, idx) => {
+            if (idx > 0 && idx % 3 === 0) {
+              ctx.fillStyle = "#b5cc6a";
+              ctx.shadowColor = "#b5cc6a";
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 1.8, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+
+          rightMargin.forEach((pt, idx) => {
+            if (idx > 0 && idx % 3 === 0) {
+              ctx.fillStyle = "#b5cc6a";
+              ctx.shadowColor = "#b5cc6a";
+              ctx.beginPath();
+              ctx.arc(pt.x, pt.y, 1.8, 0, Math.PI * 2);
+              ctx.fill();
+            }
+          });
+        });
+
+        ctx.restore();
+
+        // Update and draw data pulses
+        pulses = pulses.filter((pulse) => {
+          const active = pulse.update();
+          if (active) pulse.draw();
+          return active;
+        });
+      } else {
+        pulses = [];
+      }
 
       // Ambient background particles
       particles.forEach((p) => {
