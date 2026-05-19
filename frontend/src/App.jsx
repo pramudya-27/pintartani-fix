@@ -38,7 +38,7 @@ function App() {
 
   return (
     <div className="min-h-screen relative overflow-hidden flex flex-col animate-web-entry">
-      <PalmBackground />
+      <PalmBackground showLeaves={["beranda", "arsitektur", "tentang"].includes(currentPage)} />
       <div className="bg-grid-pattern absolute inset-0 z-0 pointer-events-none"></div>
 
       <Navbar
